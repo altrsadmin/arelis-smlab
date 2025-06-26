@@ -1,0 +1,109 @@
+# --- Stack para Postiz (smlab) via Portainer com Docker Swarm e Traefik ---
+version: '3.8'
+
+services:
+  # Serviço principal da aplicação Postiz
+  smlab:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    environment:
+      - MAIN_URL=https://smlab.arelis.online
+      - FRONTEND_URL=https://smlab.arelis.online
+      - NEXT_PUBLIC_BACKEND_URL=https://smlab.arelis.online/api
+      - JWT_SECRET=ALTRSjwtSMLAB9eb1406f060120258f7c3e2d
+      - DATABASE_URL=postgresql://smlab-user:ALTRSPG9eb1406f0601@smlab-postgres:5432/smlab-db
+      - REDIS_URL=redis://smlab-redis:6379
+      - BACKEND_INTERNAL_URL=http://localhost:3000
+      - IS_GENERAL=true
+      - DISABLE_REGISTRATION=false
+      - STORAGE_PROVIDER=local
+      - UPLOAD_DIRECTORY=/uploads
+      - NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads
+    volumes:
+      - smlab_config:/config/
+      - smlab_uploads:/uploads/
+    networks:
+      - altrs_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1024M
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.smlab.rule=Host(`smlab.arelis.online`)"
+        - "traefik.http.routers.smlab.entrypoints=websecure"
+        - "traefik.http.routers.smlab.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.smlab.service=smlab"
+        - "traefik.http.services.smlab.loadbalancer.server.port=5000"
+        - "traefik.http.services.smlab.loadbalancer.passHostHeader=true"
+
+  # Serviço do Banco de Dados PostgreSQL
+  smlab-postgres:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_PASSWORD=ALTRSPG9eb1406f0601
+      - POSTGRES_USER=smlab-user
+      - POSTGRES_DB=smlab-db
+      - TZ=America/Sao_Paulo
+    volumes:
+      - smlab_postgres_data:/var/lib/postgresql/data
+    networks:
+      - altrs_net
+    healthcheck:
+      test: pg_isready -U smlab-user -d smlab-db
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2048M
+
+  # Serviço do Redis
+  smlab-redis:
+    image: redis:7.2
+    volumes:
+      - smlab_redis_data:/data
+    networks:
+      - altrs_net
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+# --- Definição de Volumes e Redes Externas ---
+volumes:
+  smlab_postgres_data:
+    external: true
+  smlab_redis_data:
+    external: true
+  smlab_config:
+    external: true
+  smlab_uploads:
+    external: true
+
+networks:
+  altrs_net:
+    external: true
