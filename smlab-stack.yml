@@ -1,5 +1,4 @@
 # --- Stack para Postiz (smlab) via Portainer com Docker Swarm e Traefik ---
-version: '3.8'
 
 services:
   # Serviço principal da aplicação Postiz
@@ -10,8 +9,8 @@ services:
       - FRONTEND_URL=https://smlab.arelis.online
       - NEXT_PUBLIC_BACKEND_URL=https://smlab.arelis.online/api
       - JWT_SECRET=ALTRSjwtSMLAB9eb1406f060120258f7c3e2d
-      - DATABASE_URL=postgresql://smlab-user:ALTRSPG9eb1406f0601@smlab-postgres:5432/smlab-db
-      - REDIS_URL=redis://smlab-redis:6379
+      - DATABASE_URL=postgresql://postgres:ALTRSPG9eb1406f0601@smlab_postgres:5432/smlab_db0
+      - REDIS_URL=redis://smlab_redis:6379
       - BACKEND_INTERNAL_URL=http://localhost:3000
       - IS_GENERAL=true
       - DISABLE_REGISTRATION=false
@@ -33,6 +32,7 @@ services:
         limits:
           cpus: "1"
           memory: 1024M
+          
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.smlab.rule=Host(`smlab.arelis.online`)"
@@ -43,19 +43,18 @@ services:
         - "traefik.http.services.smlab.loadbalancer.passHostHeader=true"
 
   # Serviço do Banco de Dados PostgreSQL
-  smlab-postgres:
+  smlab_postgres:
     image: postgres:17-alpine
     environment:
       - POSTGRES_PASSWORD=ALTRSPG9eb1406f0601
-      - POSTGRES_USER=smlab-user
-      - POSTGRES_DB=smlab-db
+      - POSTGRES_DB=smlab_db0
       - TZ=America/Sao_Paulo
     volumes:
       - smlab_postgres_data:/var/lib/postgresql/data
     networks:
       - altrs_net
     healthcheck:
-      test: pg_isready -U smlab-user -d smlab-db
+      test: pg_isready -U postgres -d smlab_db0
       interval: 10s
       timeout: 3s
       retries: 3
@@ -71,7 +70,7 @@ services:
           memory: 2048M
 
   # Serviço do Redis
-  smlab-redis:
+  smlab_redis:
     image: redis:7.2
     volumes:
       - smlab_redis_data:/data
